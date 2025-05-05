@@ -2,7 +2,10 @@
     <NLayout class="h-full" position="absolute">
         <NLayoutHeader position="absolute" bordered style="height: 60px;padding: 10px;" class="flex items-center">
             <NSpace justify="space-between" class="w-full">
-                <div>hello {{ auth.user?.name }}</div>
+                <div class="flex gap-2 items-center">
+                    <NButton class="drawer-btn" @click="() => drawerShow = !drawerShow">房间</NButton>
+                    <div>hello {{ auth.user?.name }}</div>
+                </div>
                 <div>
                     <NButton @click="logout">退出登录</NButton>
                 </div>
@@ -11,18 +14,27 @@
         <NLayoutContent position="absolute" style="top: 60px;padding: 10px;" content-style="width: 100%;height: 100%;"
             :native-scrollbar="false">
             <div class="flex h-full w-full">
-                <div class="w-[30%] h-full overflow-auto">
+                <RoomInputDialog v-model:show="roomCreateDialogConfig.show" title="创建房间" placeholder="请输入房间名"
+                    @ok-callback="createRoomDialogSubmitHandler"></RoomInputDialog>
+                <RoomInputDialog v-model:show="roomJoinDialogConfig.show" title="加入房间" placeholder="请输入房间ID"
+                    @ok-callback="joinRoomDialogSubmitHandler"></RoomInputDialog>
+                <NDrawer class="h-full overflow-auto" v-model:show="drawerShow" placement="left">
+                    <NDrawerContent>
+                        <NSpace>
+                            <NButton @click="() => roomInputClickHandler('create')">创建房间</NButton>
+                            <NButton @click="() => roomInputClickHandler('join')">加入房间</NButton>
+                        </NSpace>
+                        <NMenu v-model:value="currentRoom" :options="menuOptions"></NMenu>
+                    </NDrawerContent>
+                </NDrawer>
+                <div class="w-[30%] room-group">
                     <NSpace>
-                        <RoomInputDialog v-model:show="roomCreateDialogConfig.show" title="创建房间" placeholder="请输入房间名"
-                            @ok-callback="createRoomDialogSubmitHandler"></RoomInputDialog>
-                        <RoomInputDialog v-model:show="roomJoinDialogConfig.show" title="加入房间" placeholder="请输入房间ID"
-                            @ok-callback="joinRoomDialogSubmitHandler"></RoomInputDialog>
                         <NButton @click="() => roomInputClickHandler('create')">创建房间</NButton>
                         <NButton @click="() => roomInputClickHandler('join')">加入房间</NButton>
                     </NSpace>
                     <NMenu v-model:value="currentRoom" :options="menuOptions"></NMenu>
                 </div>
-                <div class="w-[70%] h-full overflow-auto" ref="layoutContentRef">
+                <div class="flex-1 h-full overflow-auto" ref="layoutContentRef">
                     <RouterView v-slot="{ Component }">
                         <transition>
                             <KeepAlive>
@@ -48,6 +60,8 @@ import {
     NButton,
     NMenu,
     useMessage,
+    NDrawer,
+    NDrawerContent,
 } from 'naive-ui'
 import axios from 'axios'
 import RoomInputDialog from '../components/RoomInputDialog.vue'
@@ -71,6 +85,8 @@ const menuOptions = computed<MenuOption[]>(() => {
         }
     })
 })
+
+const drawerShow = ref(false)
 
 const roomCreateDialogConfig = reactive({
     show: false
@@ -161,3 +177,18 @@ onMounted(() => {
 })
 
 </script>
+<style>
+.drawer-btn {
+    display: none;
+}
+
+@media screen and (max-width: 450px) {
+    .room-group {
+        display: none;
+    }
+
+    .drawer-btn {
+        display: block;
+    }
+}
+</style>

@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import {NModal, NInput} from 'naive-ui'
-import { ref, defineEmits } from 'vue';
+import { ref } from 'vue';
 
 const show = defineModel<boolean>('show', {
     default: false

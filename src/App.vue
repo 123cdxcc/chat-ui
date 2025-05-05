@@ -8,15 +8,16 @@
 
 <script setup lang="ts">
 import { NNotificationProvider, NMessageProvider } from 'naive-ui'
-import {useAuth} from './store'
-import { provide } from 'vue'
+import { useAuth } from './store'
+import { provide, onMounted, nextTick } from 'vue'
 import { useWebSocket } from '@vueuse/core'
 
 
 const auth = useAuth()
 
-const { open, data, status, send, close } = useWebSocket("ws/chat/channel", {
-    autoReconnect: true
+const { open, data, status, send, close } = useWebSocket("/ws/chat/channel", {
+  immediate: false,
+  autoReconnect: true,
 })
 
 provide('chat-channel', {
@@ -31,8 +32,19 @@ auth.$subscribe((_, state) => {
       console.debug('连接消息通道')
     }
   } else {
-    close()
-    console.debug('关闭消息通道')
+    if (status.value === 'OPEN' || status.value === 'CONNECTING') {
+      close()
+      console.debug('关闭消息通道')
+    }
+  }
+})
+
+onMounted(() => {
+  if (auth.logged && status.value === 'CLOSED') {
+    nextTick(() => {
+      open()
+      console.log('连接消息通道')
+    })
   }
 })
 </script>
