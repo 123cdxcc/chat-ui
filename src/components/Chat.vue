@@ -13,8 +13,9 @@
                         <NText depth="3">{{ item.from.name }}</NText>
                         <div class="p-2 rounded-sm" style="word-break: break-all;width: fit-content;"
                             :class="[item.from.id === auth.user?.id ? 'bg-[#020617] text-white' : 'bg-[#f1f5f9]']">
-                            <NText style="white-space: pre-wrap;" :style="item.from.id === auth.user?.id ? 'color: white' : ''">{{ item.content
-                            }}
+                            <NText style="white-space: pre-wrap;"
+                                :style="item.from.id === auth.user?.id ? 'color: white' : ''">{{ item.content
+                                }}
                             </NText>
                         </div>
                     </div>
@@ -35,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, watch, type Ref } from 'vue';
+import { computed, onMounted, onUnmounted, onActivated, nextTick, ref } from 'vue';
 import { useAuth } from './../store'
 import {
     NAvatar,
@@ -46,17 +47,13 @@ import {
     NInput,
     NEmpty,
 } from 'naive-ui'
-
-const { data, send }: { data: Ref<string>, send: (str: string) => void } = inject('chat-channel', {
-    data: ref(''),
-    send: () => { }
-})
+import { subscribe, unsubscribe, sendMessage } from '../apis/chat-channel'
 
 const messagesRef = ref<HTMLElement | null>()
 const layoutContentRef = ref<HTMLElement | null>()
 
 const props = defineProps<{
-    roomID: string
+    roomID: number | undefined
 }>()
 
 const roomID = computed(() => {
@@ -69,50 +66,56 @@ const messages = ref<any[]>([])
 
 const message = ref('')
 
-watch(data, (val) => {
-    if (!val) {
+onMounted(() => {
+    if (!props.roomID) {
         return
     }
-    const msg = JSON.parse(val)
-    if (msg.to.id !== roomID.value) {
-        return
-    }
-    messages.value.push(JSON.parse(val))
-    if (layoutContentRef.value && messagesRef.value) {
-        nextTick(() => {
-            layoutContentRef.value?.scrollTo({
-                top: messagesRef.value!.clientHeight,
-                behavior: 'smooth'
+    subscribe(String(props.roomID), (data) => {
+        if (!data) {
+            return
+        }
+        console.log(data)
+        messages.value.push(data)
+        if (layoutContentRef.value && messagesRef.value) {
+            nextTick(() => {
+                layoutContentRef.value?.scrollTo({
+                    top: messagesRef.value!.clientHeight,
+                    behavior: 'smooth'
+                })
             })
-        })
-    }
+        }
+    })
+})
+
+onUnmounted(() => {
+    unsubscribe(String(props.roomID))
 })
 
 function handleInputKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
-    if (event.shiftKey) {
-      // Shift + Enter → 插入换行（无需处理，NInput 会自动换行）
-      return
-    } else {
-      // 只按 Enter → 阻止默认行为并发送
-      event.preventDefault()
-      sendMessage()
+        if (event.shiftKey) {
+            // Shift + Enter → 插入换行（无需处理，NInput 会自动换行）
+            return
+        } else {
+            // 只按 Enter → 阻止默认行为并发送
+            event.preventDefault()
+            sendMessageHandler()
+        }
     }
-  }
 }
 
 
-function sendMessage(e?: Event) {
+function sendMessageHandler(e?: Event) {
     e?.preventDefault()
     if (!message) {
         return
     }
-    send(JSON.stringify({
+    sendMessage({
         'to': {
             'id': roomID.value
         },
         'content': message.value
-    }))
+    })
     message.value = ''
 }
 </script>

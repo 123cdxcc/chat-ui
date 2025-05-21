@@ -38,7 +38,7 @@
                     <RouterView v-slot="{ Component }">
                         <transition>
                             <KeepAlive>
-                                <component :key="currentRoom" :is="Component" />
+                                <component :key="currentRoom" :is="Component" :roomID="currentRoom" />
                             </KeepAlive>
                         </transition>
                     </RouterView>

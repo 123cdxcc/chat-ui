@@ -11,7 +11,6 @@ const routes: RouteRecordRaw[] = [
     {
         path: '/room/:roomID',
         name: 'chat',
-        props: true,
         component: Chat
     }
   ] },
