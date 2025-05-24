@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 type User = {
-    id: string
+    id: number
     name: string
 }
 

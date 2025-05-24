@@ -4,11 +4,43 @@ import { watch } from 'vue'
 enum MessageType {
     ChatData = 0,
     Heartbeat = 1,
+    StreamChatData = 2
 }
 
-interface Message {
-    type: MessageType,
-    data: any,
+enum ChatObjectType {
+    User = "user",
+    Room = "room"
+}
+
+interface Message<T> {
+    type: MessageType;
+    data: T;
+}
+
+interface Sender {
+    id: number;
+    name: string;
+}
+
+interface Receiver {
+    id: number; 
+    name?: string;
+    type: ChatObjectType;
+}
+
+interface ChatDataInput {
+    clientSeqId: string;
+    senderId: number;
+    receiver: Receiver;
+    content: string;
+}
+
+interface ChatDataOutput {
+    id: string;
+    clientSeqId: string;
+    sender: Sender;
+    receiver: Receiver;
+    content: string;
 }
 
 const { open, data, status, send, close } = useWebSocket("/ws/chat/channel", {
@@ -16,28 +48,28 @@ const { open, data, status, send, close } = useWebSocket("/ws/chat/channel", {
     autoReconnect: true,
 })
 
-const subscribeMap = new Map<string, (data: any) => void>()
+const subscribeRoomMap = new Map<number, (data: ChatDataOutput) => void>()
 
 watch(data, (data) => {
-    const message = JSON.parse(data) as Message
+    const message = JSON.parse(data) as Message<ChatDataOutput>
     if (message.type === MessageType.ChatData) {
-        const roomID = String(message.data.to.id)
-        const callback = subscribeMap.get(roomID)
+        const roomID = message.data.receiver.id
+        const callback = subscribeRoomMap.get(roomID)
         if (callback) {
             callback(message.data)
         }
     }
 })
 
-function subscribe(roomID: string, callback: (data: any) => void) {
-    subscribeMap.set(roomID, callback)
+function subscribeRoom(roomID: number, callback: (data: ChatDataOutput) => void) {
+    subscribeRoomMap.set(roomID, callback)
 }
 
-function unsubscribe(roomID: string) {
-    subscribeMap.delete(roomID)
+function unsubscribeRoom(roomID: number) {
+    subscribeRoomMap.delete(roomID)
 }
 
-function sendMessage(data: any) {
+function sendMessage(data: ChatDataInput) {
     send(JSON.stringify({
         type: MessageType.ChatData,
         data: data
@@ -69,10 +101,21 @@ function stop() {
 }
 
 export {
-    subscribe,
-    unsubscribe,
+    subscribeRoom,
+    unsubscribeRoom,
     sendMessage,
     start,
     stop,
     status,
+    ChatObjectType,
+    MessageType,
+}
+
+export type {
+    // 类型
+    ChatDataInput,
+    ChatDataOutput,
+    Sender,
+    Receiver,
+    Message
 }

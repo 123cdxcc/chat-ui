@@ -3,18 +3,16 @@
         <div class="h-full overflow-auto" ref="layoutContentRef">
             <ul v-if="messages.length !== 0" ref="messagesRef" class="flex flex-col gap-2">
                 <li v-for="item in messages" :key="item.id" class="flex items-start gap-2" :class="{
-                    'flex-row-reverse': item.from.id === auth.user?.id,
+                    'flex-row-reverse': item.sender.id === auth.user?.id,
                 }">
-                    <NAvatar round :src="'https://random-cat-assets-r2.hats-land.com/api/v1/images?id' + item.from.id">
+                    <NAvatar round :src="'https://random-cat-assets-r2.hats-land.com/api/v1/images?id' + item.sender.id">
                     </NAvatar>
-                    <div class="flex-1 flex items-start" :class="{
-                        'flex-row-reverse': item.from.id === auth.user?.id,
-                    }">
-                        <NText depth="3">{{ item.from.name }}</NText>
+                    <div class="flex-1 flex flex-col" :class="[item.sender.id === auth.user?.id ? 'items-end' : 'items-start']">
+                        <NText depth="3">{{ item.sender.name }}</NText>
                         <div class="p-2 rounded-sm" style="word-break: break-all;width: fit-content;"
-                            :class="[item.from.id === auth.user?.id ? 'bg-[#020617] text-white' : 'bg-[#f1f5f9]']">
+                            :class="[item.sender.id === auth.user?.id ? 'bg-[#020617] text-white' : 'bg-[#f1f5f9]']">
                             <NText style="white-space: pre-wrap;"
-                                :style="item.from.id === auth.user?.id ? 'color: white' : ''">{{ item.content
+                                :style="item.sender.id === auth.user?.id ? 'color: white' : ''">{{ item.content
                                 }}
                             </NText>
                         </div>
@@ -23,7 +21,7 @@
             </ul>
             <NEmpty v-else description="暂无消息" class="h-full justify-center"></NEmpty>
         </div>
-        <NForm @submit.prevent="sendMessage" inline>
+        <NForm @submit.prevent="sendMessageHandler" inline>
             <NInputGroup>
                 <NInput placeholder="请输入" v-model:value="message" type="textarea" :autosize="{
                     minRows: 1,
@@ -36,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, onActivated, nextTick, ref } from 'vue';
+import { computed, onMounted, onUnmounted, nextTick, ref } from 'vue';
 import { useAuth } from './../store'
 import {
     NAvatar,
@@ -47,7 +45,9 @@ import {
     NInput,
     NEmpty,
 } from 'naive-ui'
-import { subscribe, unsubscribe, sendMessage } from '../apis/chat-channel'
+import { subscribeRoom, unsubscribeRoom, sendMessage, ChatObjectType } from '../apis/chat-channel'
+import { type ChatDataOutput } from '../apis/chat-channel'
+import { newUUID } from '../utils/uuid'
 
 const messagesRef = ref<HTMLElement | null>()
 const layoutContentRef = ref<HTMLElement | null>()
@@ -56,13 +56,16 @@ const props = defineProps<{
     roomID: number | undefined
 }>()
 
-const roomID = computed(() => {
-    return Number(props.roomID)
+const currentChatObject = computed(() => {
+    return {
+        id: props.roomID ?? 0,
+        type: ChatObjectType.Room,
+    }
 })
 
 const auth = useAuth()
 
-const messages = ref<any[]>([])
+const messages = ref<ChatDataOutput[]>([])
 
 const message = ref('')
 
@@ -70,11 +73,10 @@ onMounted(() => {
     if (!props.roomID) {
         return
     }
-    subscribe(String(props.roomID), (data) => {
+    subscribeRoom(props.roomID, (data: ChatDataOutput) => {
         if (!data) {
             return
         }
-        console.log(data)
         messages.value.push(data)
         if (layoutContentRef.value && messagesRef.value) {
             nextTick(() => {
@@ -88,7 +90,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-    unsubscribe(String(props.roomID))
+    if (!props.roomID) {
+        return
+    }
+    unsubscribeRoom(props.roomID)
 })
 
 function handleInputKeydown(event: KeyboardEvent) {
@@ -111,10 +116,13 @@ function sendMessageHandler(e?: Event) {
         return
     }
     sendMessage({
-        'to': {
-            'id': roomID.value
+        clientSeqId: newUUID(),
+        senderId: auth.user?.id ?? 0,
+        receiver: {
+            id: currentChatObject.value.id,
+            type: currentChatObject.value.type,
         },
-        'content': message.value
+        content: message.value
     })
     message.value = ''
 }
